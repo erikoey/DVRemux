@@ -1,0 +1,56 @@
+﻿<Window x:Class="MKV_Converter.FfmpegSetupDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="First-Time Setup: FFmpeg Required" Height="500" Width="600" WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" FontSize="18" FontWeight="Bold" Text="FFmpeg Not Found" Margin="0,0,0,10"/>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <TextBlock TextWrapping="Wrap">
+                <Run FontWeight="Bold">This application requires FFmpeg to function.</Run>
+                <LineBreak/><LineBreak/>
+                Please follow these steps to install it on your system:
+                <LineBreak/><LineBreak/>
+                <Run FontWeight="Bold">Step 1: Download FFmpeg</Run>
+                <LineBreak/>
+                Click the button below to download the "essentials" build of FFmpeg.
+                <LineBreak/><LineBreak/>
+                <Run FontWeight="Bold">Step 2: Extract the Files</Run>
+                <LineBreak/>
+                1. Open your Downloads folder and right-click the .zip file, then select "Extract All...".
+                <LineBreak/>
+                2. For the destination, choose a simple, permanent location like <Run FontFamily="Consolas">C:\ffmpeg</Run>.
+                <LineBreak/><LineBreak/>
+                <Run FontWeight="Bold">Step 3: Add FFmpeg to the Windows PATH</Run>
+                <LineBreak/>
+                1. Click the "Open Environment Variables" button below to open the correct system window.
+                <LineBreak/>
+                2. In the top "User variables" box, select the <Run FontWeight="Bold">Path</Run> row and click "Edit...".
+                <LineBreak/>
+                3. Click "New" and paste the full path to the <Run FontWeight="Bold">bin</Run> folder from Step 2. This is typically: <Run FontFamily="Consolas" FontWeight="Bold">C:\ffmpeg\bin</Run>
+                <LineBreak/>
+                4. Click OK on all windows to save.
+                <LineBreak/><LineBreak/>
+                <Run FontWeight="Bold">Step 4: Restart the Application</Run>
+                <LineBreak/>
+                After completing these steps, please close this setup window and restart the converter application.
+            </TextBlock>
+        </ScrollViewer>
+
+        <!-- New Buttons for user actions -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,0">
+            <Button Content="Download FFmpeg" Padding="10,5" Width="180" Click="DownloadButton_Click"/>
+            <Button Content="Open Environment Variables" Padding="10,5" Width="180" Margin="10,0,0,0" Click="OpenEnvVarsButton_Click"/>
+        </StackPanel>
+
+        <Button Grid.Row="3" Content="Close" Padding="10,5" HorizontalAlignment="Right" Margin="0,10,0,0" Click="CloseButton_Click"/>
+    </Grid>
+</Window>
+

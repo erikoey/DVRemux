@@ -1,0 +1,65 @@
+﻿using System.Collections.Generic;
+using System.ComponentModel;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Windows.Media;
+
+namespace MKV_Converter
+{
+    public class MediaFile : INotifyPropertyChanged
+    {
+        public string FilePath { get; set; }
+        public string FileName { get; set; }
+        public string FileSize { get; set; }
+        public long FileSizeBytes { get; set; }
+        public string DolbyVisionProfile { get; set; }
+        public bool HasBitmapSubs { get; set; }
+        public string ErrorMessage { get; set; }
+
+        public bool ShowWarningIcon => HasBitmapSubs;
+        public string WarningTooltipText => HasBitmapSubs
+            ? "This file contains image-based subtitles that will be stripped during conversion."
+            : null;
+
+        private string _progressText = "Pending";
+        public string ProgressText { get => _progressText; set { _progressText = value; OnPropertyChanged(); } }
+
+        private int _progress = 0;
+        public int Progress { get => _progress; set { _progress = value; OnPropertyChanged(); } }
+
+        private bool _isIndeterminate = false;
+        public bool IsIndeterminate { get => _isIndeterminate; set { _isIndeterminate = value; OnPropertyChanged(); } }
+
+        private SolidColorBrush _rowBrush = Brushes.Transparent;
+        public SolidColorBrush RowBrush { get => _rowBrush; set { _rowBrush = value; OnPropertyChanged(); } }
+
+        private string _finalStatus;
+        public string FinalStatus { get => _finalStatus; set { _finalStatus = value; OnPropertyChanged(); } }
+
+        private string _status = "Pending";
+        public string Status
+        {
+            get => _status;
+            set
+            {
+                _status = value;
+                switch (_status)
+                {
+                    case "Processing": RowBrush = new SolidColorBrush(Color.FromRgb(255, 255, 204)); FinalStatus = "In Progress..."; break;
+                    case "Success": RowBrush = new SolidColorBrush(Color.FromRgb(153, 255, 153)); FinalStatus = "Success"; break;
+                    case "Failed": RowBrush = new SolidColorBrush(Color.FromRgb(255, 153, 153)); FinalStatus = "Failed"; break;
+                    case "Cancelled": RowBrush = new SolidColorBrush(Color.FromRgb(255, 204, 153)); FinalStatus = "Cancelled"; break;
+                    default: RowBrush = Brushes.Transparent; FinalStatus = "Pending"; break;
+                }
+                OnPropertyChanged();
+            }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string name = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        }
+    }
+}
+

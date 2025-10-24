@@ -1,0 +1,180 @@
+﻿using System;
+using System.Diagnostics;
+using System.IO;
+using System.Text;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace MKV_Converter
+{
+    public class ConversionResult
+    {
+        public bool Success { get; set; }
+        public string ErrorMessage { get; set; }
+    }
+
+    public static class AnalysisWorker
+    {
+        public static async Task<MediaFile> AnalyzeFileAsync(string filePath)
+        {
+            var fileInfo = new FileInfo(filePath);
+            var mediaFile = new MediaFile
+            {
+                FilePath = filePath,
+                FileName = fileInfo.Name,
+                FileSizeBytes = fileInfo.Length,
+                FileSize = FormatFileSize(fileInfo.Length)
+            };
+
+            var command = $"ffprobe -v quiet -print_format json -show_streams \"{filePath}\"";
+            var processStartInfo = new ProcessStartInfo("cmd.exe", "/c " + command)
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                StandardOutputEncoding = Encoding.UTF8
+            };
+
+            using var process = Process.Start(processStartInfo);
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            await process.WaitForExitAsync();
+            string jsonOutput = await outputTask;
+
+            try
+            {
+                if (!string.IsNullOrEmpty(jsonOutput))
+                {
+                    using var doc = JsonDocument.Parse(jsonOutput);
+                    var streams = doc.RootElement.GetProperty("streams").EnumerateArray();
+                    string[] bitmapCodecs = { "hdmv_pgs_subtitle", "dvd_subtitle" };
+
+                    foreach (var stream in streams)
+                    {
+                        if (stream.TryGetProperty("codec_type", out var codecType) && codecType.GetString() == "video")
+                        {
+                            if (stream.TryGetProperty("side_data_list", out var sideDataList))
+                            {
+                                foreach (var sideData in sideDataList.EnumerateArray())
+                                {
+                                    if (sideData.TryGetProperty("side_data_type", out var dataType) && dataType.GetString() == "DOVI configuration record")
+                                    {
+                                        var profile = sideData.TryGetProperty("dv_profile", out var dvProfile) ? dvProfile.GetInt32() : -1;
+                                        var compatId = sideData.TryGetProperty("dv_bl_signal_compatibility_id", out var dvCompatId) ? dvCompatId.GetInt32() : -1;
+                                        mediaFile.DolbyVisionProfile = (profile == 8 && compatId == 1) ? "8.1" : profile.ToString();
+                                    }
+                                }
+                            }
+                        }
+                        else if (stream.TryGetProperty("codec_type", out codecType) && codecType.GetString() == "subtitle")
+                        {
+                            string codecName = stream.TryGetProperty("codec_name", out var cn) ? cn.GetString() : "unknown";
+                            if (Array.Exists(bitmapCodecs, c => c == codecName))
+                            {
+                                mediaFile.HasBitmapSubs = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error analyzing {filePath}: {ex.Message}");
+                mediaFile.DolbyVisionProfile = "Error";
+            }
+
+            if (string.IsNullOrEmpty(mediaFile.DolbyVisionProfile)) mediaFile.DolbyVisionProfile = "No";
+            return mediaFile;
+        }
+
+        private static string FormatFileSize(long sizeInBytes)
+        {
+            if (sizeInBytes < 1024) return $"{sizeInBytes} B";
+            double size = sizeInBytes;
+            string[] units = { "KB", "MB", "GB", "TB" };
+            int unitIndex = -1;
+            do { size /= 1024.0; unitIndex++; } while (size >= 1024.0 && unitIndex < units.Length - 1);
+            return $"{size:0.##} {units[unitIndex]}";
+        }
+    }
+
+    public class ConversionWorker
+    {
+        public MediaFile File { get; }
+        private readonly string _outputFolder;
+        private Process _process;
+        private static CancellationTokenSource _cts = new CancellationTokenSource();
+
+        public event Action<int, bool, string> ProgressUpdated;
+
+        public ConversionWorker(MediaFile file, string outputFolder)
+        {
+            File = file;
+            _outputFolder = outputFolder;
+        }
+
+        public static void CancelAll()
+        {
+            if (!_cts.IsCancellationRequested)
+            {
+                _cts.Cancel();
+            }
+        }
+
+        public static void ResetCancellation()
+        {
+            _cts = new CancellationTokenSource();
+        }
+
+        public async Task<ConversionResult> RunConversionAsync()
+        {
+            string outputFile = Path.Combine(string.IsNullOrEmpty(_outputFolder) ? Path.GetDirectoryName(File.FilePath) : _outputFolder, $"{Path.GetFileNameWithoutExtension(File.FilePath)}.mp4");
+
+            string subtitleFlags = File.HasBitmapSubs
+                ? "-map 0:v? -map 0:a? -c:v copy -c:a copy"
+                : "-map 0:v? -map 0:a? -map 0:s? -c:v copy -c:a copy -c:s mov_text";
+
+            string command = $"ffmpeg -y -i \"{File.FilePath}\" -hide_banner -loglevel warning -strict experimental {subtitleFlags} -dn -map_chapters -1 -movflags +faststart -strict -2 \"{outputFile}\"";
+
+            return await ExecuteFfmpegWithPolling(command, outputFile, "Converting...");
+        }
+
+        private async Task<ConversionResult> ExecuteFfmpegWithPolling(string command, string outputFile, string initialStatusText)
+        {
+            var processStartInfo = new ProcessStartInfo("cmd.exe", "/c " + command) { RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
+            try
+            {
+                _process = Process.Start(processStartInfo);
+                var errorTask = _process.StandardError.ReadToEndAsync();
+
+                while (!_process.HasExited)
+                {
+                    if (_cts.Token.IsCancellationRequested)
+                    {
+                        _process.Kill(true);
+                        return new ConversionResult { Success = false, ErrorMessage = "Cancelled" };
+                    }
+                    try
+                    {
+                        var outputInfo = new FileInfo(outputFile);
+                        if (outputInfo.Exists && File.FileSizeBytes > 0)
+                        {
+                            int percent = (int)((double)outputInfo.Length / File.FileSizeBytes * 100);
+                            bool isFinalizing = percent >= 99;
+                            ProgressUpdated?.Invoke(Math.Min(100, percent), isFinalizing, isFinalizing ? "Finalizing..." : $"{initialStatusText} {percent}%");
+                        }
+                    }
+                    catch { /* Ignore */ }
+                    await Task.Delay(1000);
+                }
+
+                string errorOutput = await errorTask;
+                return new ConversionResult { Success = _process.ExitCode == 0, ErrorMessage = _process.ExitCode == 0 ? "" : errorOutput };
+            }
+            catch (Exception ex) { return new ConversionResult { Success = false, ErrorMessage = ex.Message }; }
+        }
+    }
+}
+
