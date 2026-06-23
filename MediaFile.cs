@@ -27,7 +27,6 @@ namespace MKV_Converter
             {
                 if (string.IsNullOrEmpty(OriginalAudioCodec)) return "Unknown";
 
-                // Format channels into standard naming conventions
                 string channels = AudioChannels switch
                 {
                     1 => "1.0 Mono",
@@ -37,7 +36,8 @@ namespace MKV_Converter
                     _ => $"{AudioChannels} ch"
                 };
 
-                return $"{OriginalAudioCodec.ToUpper()} ({channels})";
+                // OriginalAudioCodec is already formatted from the AnalysisWorker
+                return $"{OriginalAudioCodec} ({channels})";
             }
         }
 

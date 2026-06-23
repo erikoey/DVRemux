@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -49,6 +51,12 @@ namespace MKV_Converter
                     using var doc = JsonDocument.Parse(jsonOutput);
                     var streams = doc.RootElement.GetProperty("streams").EnumerateArray();
                     string[] bitmapCodecs = { "hdmv_pgs_subtitle", "dvd_subtitle" };
+                    string[] supportedAudioCodecs = { "aac", "ac3", "eac3", "mp3", "mp2" };
+
+                    // Variables to track ALL audio streams in the file
+                    List<string> foundAudioCodecs = new List<string>();
+                    int maxAudioChannels = 0;
+                    bool requiresAudioConversion = false;
 
                     foreach (var stream in streams)
                     {
@@ -73,26 +81,41 @@ namespace MKV_Converter
                             if (Array.Exists(bitmapCodecs, c => c == codecName))
                             {
                                 mediaFile.HasBitmapSubs = true;
-                                break;
                             }
                         }
+                        // NEW: Evaluate ALL audio streams
                         else if (stream.TryGetProperty("codec_type", out codecType) && codecType.GetString() == "audio")
                         {
                             string codecName = stream.TryGetProperty("codec_name", out var cn) ? cn.GetString() : "unknown";
 
-                            if (string.IsNullOrEmpty(mediaFile.OriginalAudioCodec))
+                            // Add the codec to our list if we haven't seen it yet
+                            if (!foundAudioCodecs.Contains(codecName, StringComparer.OrdinalIgnoreCase))
                             {
-                                mediaFile.OriginalAudioCodec = codecName;
-                                // NEW: Get the number of channels
-                                mediaFile.AudioChannels = stream.TryGetProperty("channels", out var ch) ? ch.GetInt32() : 2;
+                                foundAudioCodecs.Add(codecName);
                             }
 
-                            string[] supportedAudioCodecs = { "aac", "ac3", "eac3", "mp3", "mp2" };
-                            if (!Array.Exists(supportedAudioCodecs, c => c == codecName))
+                            // Track the maximum number of channels found
+                            int channels = stream.TryGetProperty("channels", out var ch) ? ch.GetInt32() : 2;
+                            if (channels > maxAudioChannels)
                             {
-                                mediaFile.RequiresAudioConversion = true;
+                                maxAudioChannels = channels;
+                            }
+
+                            // If any track is unsupported, flag the file for conversion
+                            if (!Array.Exists(supportedAudioCodecs, c => string.Equals(c, codecName, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                requiresAudioConversion = true;
                             }
                         }
+                    }
+
+                    // After scanning all streams, apply the findings to the MediaFile
+                    if (foundAudioCodecs.Count > 0)
+                    {
+                        // Joins them cleanly, e.g. "ac3, dts"
+                        mediaFile.OriginalAudioCodec = string.Join(", ", foundAudioCodecs).ToUpper();
+                        mediaFile.AudioChannels = maxAudioChannels;
+                        mediaFile.RequiresAudioConversion = requiresAudioConversion;
                     }
                 }
             }
