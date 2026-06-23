@@ -16,10 +16,45 @@ namespace MKV_Converter
         public bool HasBitmapSubs { get; set; }
         public string ErrorMessage { get; set; }
 
-        public bool ShowWarningIcon => HasBitmapSubs;
-        public string WarningTooltipText => HasBitmapSubs
-            ? "This file contains image-based subtitles that will be stripped during conversion."
-            : null;
+        // Audio Information
+        public string OriginalAudioCodec { get; set; }
+
+        public int AudioChannels { get; set; } = 2; // Default to stereo
+
+        public string AudioDescription
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(OriginalAudioCodec)) return "Unknown";
+
+                // Format channels into standard naming conventions
+                string channels = AudioChannels switch
+                {
+                    1 => "1.0 Mono",
+                    2 => "2.0 Stereo",
+                    6 => "5.1 Surround",
+                    8 => "7.1 Surround",
+                    _ => $"{AudioChannels} ch"
+                };
+
+                return $"{OriginalAudioCodec.ToUpper()} ({channels})";
+            }
+        }
+
+        public bool RequiresAudioConversion { get; set; }
+
+        public string WarningTooltipText
+        {
+            get
+            {
+                string warnings = "";
+                if (HasBitmapSubs) warnings += "• Contains image-based subtitles that will be stripped.\n";
+                if (RequiresAudioConversion) warnings += $"• Unsupported audio ({OriginalAudioCodec}) will be converted to AC3.\n";
+                return warnings.TrimEnd('\n');
+            }
+        }
+
+        public bool ShowWarningIcon => HasBitmapSubs || RequiresAudioConversion;
 
         private string _progressText = "Pending";
         public string ProgressText { get => _progressText; set { _progressText = value; OnPropertyChanged(); } }

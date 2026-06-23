@@ -346,6 +346,11 @@ namespace MKV_Converter
             if (MainTabControl.SelectedItem == HistoryTab) return HistoryGrid;
             return QueueGrid; // Default
         }
+
+        private void QueueGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+
+        }
     }
 }
 

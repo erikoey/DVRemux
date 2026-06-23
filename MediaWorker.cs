@@ -76,6 +76,23 @@ namespace MKV_Converter
                                 break;
                             }
                         }
+                        else if (stream.TryGetProperty("codec_type", out codecType) && codecType.GetString() == "audio")
+                        {
+                            string codecName = stream.TryGetProperty("codec_name", out var cn) ? cn.GetString() : "unknown";
+
+                            if (string.IsNullOrEmpty(mediaFile.OriginalAudioCodec))
+                            {
+                                mediaFile.OriginalAudioCodec = codecName;
+                                // NEW: Get the number of channels
+                                mediaFile.AudioChannels = stream.TryGetProperty("channels", out var ch) ? ch.GetInt32() : 2;
+                            }
+
+                            string[] supportedAudioCodecs = { "aac", "ac3", "eac3", "mp3", "mp2" };
+                            if (!Array.Exists(supportedAudioCodecs, c => c == codecName))
+                            {
+                                mediaFile.RequiresAudioConversion = true;
+                            }
+                        }
                     }
                 }
             }
@@ -132,11 +149,21 @@ namespace MKV_Converter
         {
             string outputFile = Path.Combine(string.IsNullOrEmpty(_outputFolder) ? Path.GetDirectoryName(File.FilePath) : _outputFolder, $"{Path.GetFileNameWithoutExtension(File.FilePath)}.mp4");
 
-            string subtitleFlags = File.HasBitmapSubs
-                ? "-map 0:v? -map 0:a? -c:v copy -c:a copy"
-                : "-map 0:v? -map 0:a? -map 0:s? -c:v copy -c:a copy -c:s mov_text";
+            // (Keep your existing smart audio bitrate logic here)
+            string audioBitrate = "224k";
+            if (File.AudioChannels >= 6)
+            {
+                audioBitrate = "640k";
+            }
 
-            string command = $"ffmpeg -y -i \"{File.FilePath}\" -hide_banner -loglevel warning -strict experimental {subtitleFlags} -dn -map_chapters -1 -movflags +faststart -strict -2 \"{outputFile}\"";
+            string audioFlag = File.RequiresAudioConversion ? $"ac3 -b:a {audioBitrate}" : "copy";
+
+            string commandFlags = File.HasBitmapSubs
+                ? $"-map 0:v? -map 0:a? -c:v copy -c:a {audioFlag}"
+                : $"-map 0:v? -map 0:a? -map 0:s? -c:v copy -c:a {audioFlag} -c:s mov_text";
+
+            // NEW: Add -fflags +genpts right before -i
+            string command = $"ffmpeg -y -fflags +genpts -i \"{File.FilePath}\" -hide_banner -loglevel warning -strict experimental {commandFlags} -dn -map_chapters -1 -movflags +faststart -strict -2 \"{outputFile}\"";
 
             return await ExecuteFfmpegWithPolling(command, outputFile, "Converting...");
         }

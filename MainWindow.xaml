@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MKV_Converter"
         mc:Ignorable="d"
-        Title="MKV to MP4 Converter" Height="600" Width="850" MinWidth="750" MinHeight="500"
+        Title="MKV to MP4 Converter v0.8" Height="600" Width="850" MinWidth="750" MinHeight="500"
         Icon="res/converter.ico">
     <Window.Resources>
         <local:BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>
@@ -64,7 +64,7 @@
                     <DataGrid x:Name="QueueGrid" ItemsSource="{Binding QueuedFiles}" AutoGenerateColumns="False" CanUserAddRows="False"
                               SelectionMode="Extended" SelectionUnit="FullRow" AllowDrop="True" Drop="FileGrid_Drop" DragEnter="FileGrid_DragEnter"
                               Background="Transparent" MouseDoubleClick="FileGrid_MouseDoubleClick" IsReadOnly="True"
-                              HeadersVisibility="All" LoadingRow="FileGrid_LoadingRow" PreviewKeyDown="FileGrid_PreviewKeyDown">
+                              HeadersVisibility="All" LoadingRow="FileGrid_LoadingRow" PreviewKeyDown="FileGrid_PreviewKeyDown" SelectionChanged="QueueGrid_SelectionChanged">
                         <DataGrid.ContextMenu>
                             <ContextMenu>
                                 <MenuItem Header="Open Source Folder" Click="ContextOpenSourceFolder_Click"/>
@@ -94,6 +94,7 @@
                             </DataGridTemplateColumn>
                             <DataGridTextColumn Header="Size" Binding="{Binding FileSize}" Width="Auto"/>
                             <DataGridTextColumn Header="Dolby Vision" Binding="{Binding DolbyVisionProfile}" Width="Auto"/>
+                            <DataGridTextColumn Header="Audio" Binding="{Binding AudioDescription}" Width="Auto"/>
                             <DataGridTemplateColumn Header="Progress" Width="150">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
@@ -137,6 +138,7 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
                         <DataGridTextColumn Header="Size" Binding="{Binding FileSize}" Width="Auto"/>
+                        <DataGridTextColumn Header="Audio" Binding="{Binding AudioDescription}" Width="Auto"/>
                         <DataGridTextColumn Header="Status" Binding="{Binding FinalStatus}" Width="Auto"/>
                     </DataGrid.Columns>
                 </DataGrid>
