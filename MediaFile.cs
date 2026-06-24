@@ -13,6 +13,9 @@ namespace MKV_Converter
         public string FileSize { get; set; }
         public long FileSizeBytes { get; set; }
         public string DolbyVisionProfile { get; set; }
+
+        public string VideoCodec { get; set; }
+
         public bool HasBitmapSubs { get; set; }
         public string ErrorMessage { get; set; }
 

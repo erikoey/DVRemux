@@ -65,6 +65,12 @@ namespace MKV_Converter
                     {
                         if (stream.TryGetProperty("codec_type", out var codecType) && codecType.GetString() == "video")
                         {
+                            // Capture the video codec (e.g., "hevc" or "h264")
+                            if (string.IsNullOrEmpty(mediaFile.VideoCodec))
+                            {
+                                mediaFile.VideoCodec = stream.TryGetProperty("codec_name", out var cn) ? cn.GetString() : "unknown";
+                            }
+
                             if (stream.TryGetProperty("side_data_list", out var sideDataList))
                             {
                                 foreach (var sideData in sideDataList.EnumerateArray())
@@ -184,12 +190,14 @@ namespace MKV_Converter
 
             string audioFlag = File.RequiresAudioConversion ? $"ac3 -b:a {audioBitrate}" : "copy";
 
+            // Conditionally apply the hvc1 tag if the video is HEVC
+            string videoTag = (File.VideoCodec != null && File.VideoCodec.Equals("hevc", StringComparison.OrdinalIgnoreCase)) ? "-tag:v hvc1" : "";
+
             string commandFlags = File.HasBitmapSubs
                 ? $"-map 0:v? -map 0:a? -c:v copy -c:a {audioFlag}"
-                : $"-map 0:v? -map 0:a? -map 0:s? -c:v copy -c:a {audioFlag} -c:s mov_text";
+                : $"-map 0:v? -map 0:a? -map 0:s? -c:v copy {videoTag} -c:a {audioFlag} -c:s mov_text";
 
-            // NEW: Add -fflags +genpts right before -i
-            string arguments = $"-y -fflags +genpts -i \"{File.FilePath}\" -hide_banner -loglevel warning -strict experimental {commandFlags} -dn -map_chapters -1 -movflags +faststart -strict -2 \"{outputFile}\"";
+            string arguments = $"-y -fflags +genpts -i \"{File.FilePath}\" -hide_banner -loglevel warning -strict experimental {commandFlags} -dn -map_chapters -1 -movflags +faststart -use_editlist 0 -video_track_timescale 90000 -strict -2 \"{outputFile}\"";
 
             return await ExecuteFfmpegWithPolling(arguments, outputFile, "Converting...");
         }
