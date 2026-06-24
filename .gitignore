@@ -417,6 +417,8 @@ FodyWeavers.xsd
 *.msm
 *.msp
 
+# Hide envirnoment files by default
+*.env
+
 # Inno Setup
-[Ii]nnoSetup
-*.iss
+[Ii]nnoSetup/Output
