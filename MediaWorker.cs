@@ -29,8 +29,11 @@ namespace MKV_Converter
                 FileSize = FormatFileSize(fileInfo.Length)
             };
 
-            var command = $"ffprobe -v quiet -print_format json -show_streams \"{filePath}\"";
-            var processStartInfo = new ProcessStartInfo("cmd.exe", "/c " + command)
+            // Get the exact local path to ffprobe.exe
+            string ffprobePath = Path.Combine(AppContext.BaseDirectory, "ffmpeg", "ffprobe.exe");
+
+            // Pass the arguments directly to the executable instead of using cmd.exe
+            var processStartInfo = new ProcessStartInfo(ffprobePath, $"-v quiet -print_format json -show_streams \"{filePath}\"")
             {
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -38,7 +41,7 @@ namespace MKV_Converter
                 CreateNoWindow = true,
                 StandardOutputEncoding = Encoding.UTF8
             };
-
+            
             using var process = Process.Start(processStartInfo);
             var outputTask = process.StandardOutput.ReadToEndAsync();
             await process.WaitForExitAsync();
@@ -186,14 +189,22 @@ namespace MKV_Converter
                 : $"-map 0:v? -map 0:a? -map 0:s? -c:v copy -c:a {audioFlag} -c:s mov_text";
 
             // NEW: Add -fflags +genpts right before -i
-            string command = $"ffmpeg -y -fflags +genpts -i \"{File.FilePath}\" -hide_banner -loglevel warning -strict experimental {commandFlags} -dn -map_chapters -1 -movflags +faststart -strict -2 \"{outputFile}\"";
+            string arguments = $"-y -fflags +genpts -i \"{File.FilePath}\" -hide_banner -loglevel warning -strict experimental {commandFlags} -dn -map_chapters -1 -movflags +faststart -strict -2 \"{outputFile}\"";
 
-            return await ExecuteFfmpegWithPolling(command, outputFile, "Converting...");
+            return await ExecuteFfmpegWithPolling(arguments, outputFile, "Converting...");
         }
 
-        private async Task<ConversionResult> ExecuteFfmpegWithPolling(string command, string outputFile, string initialStatusText)
+        private async Task<ConversionResult> ExecuteFfmpegWithPolling(string arguments, string outputFile, string initialStatusText)
         {
-            var processStartInfo = new ProcessStartInfo("cmd.exe", "/c " + command) { RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
+            string ffmpegPath = Path.Combine(AppContext.BaseDirectory, "ffmpeg", "ffmpeg.exe");
+
+            var processStartInfo = new ProcessStartInfo(ffmpegPath, arguments)
+            {
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
             try
             {
                 _process = Process.Start(processStartInfo);

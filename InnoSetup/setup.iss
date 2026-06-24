@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "MKV to MP4 for LG Dolby Vision TV"
-#define MyAppVersion "0.81"
+#define MyAppVersion "0.8.1"
 #define MyAppPublisher "Erik Oey"
 #define MyAppURL "https://www.bitpunked.com"
 #define MyAppExeName "MKV_Converter.exe"
@@ -50,6 +50,8 @@ Source: "..\bin\Release\net8.0-windows\MKV_Converter.runtimeconfig.json"; DestDi
 Source: "..\bin\Release\net8.0-windows\Microsoft.WindowsAPICodePack.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\bin\Release\net8.0-windows\Microsoft.WindowsAPICodePack.Shell.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\bin\Release\net8.0-windows\Readme.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\bin\Release\net8.0-windows\ffmpeg\ffmpeg.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\bin\Release\net8.0-windows\ffmpeg\ffprobe.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]

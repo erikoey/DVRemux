@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -28,12 +29,13 @@ namespace MKV_Converter
             HistoryGrid.ItemsSource = HistoryFiles;
 
             // Grab the version from the assembly
-            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+            var version = System.Reflection.Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
 
             // Set the title dynamically (e.g., "MKV to MP4 Converter v0.8")
             if (version != null)
             {
-                this.Title = $"MKV to MP4 Converter v{version.Major}.{version.Minor}.{version.Build}";
+                var clean_version = version.Split('+')[0];
+                this.Title = $"MKV to MP4 Converter v{clean_version}";
             }
         }
 
