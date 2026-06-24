@@ -43,15 +43,18 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
+[Files]
+; Main executable and .NET Core dependencies
 Source: "..\bin\Release\net8.0-windows\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\bin\Release\net8.0-windows\MKV_Converter.deps.json"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\bin\Release\net8.0-windows\MKV_Converter.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\bin\Release\net8.0-windows\MKV_Converter.runtimeconfig.json"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\bin\Release\net8.0-windows\Microsoft.WindowsAPICodePack.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\bin\Release\net8.0-windows\Microsoft.WindowsAPICodePack.Shell.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\bin\Release\net8.0-windows\Readme.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\bin\Release\net8.0-windows\ffmpeg\ffmpeg.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\bin\Release\net8.0-windows\ffmpeg\ffprobe.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\bin\Release\net8.0-windows\*.dll"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\bin\Release\net8.0-windows\*.json"; DestDir: "{app}"; Flags: ignoreversion
+
+; Bundled FFmpeg folder
+Source: "..\bin\Release\net8.0-windows\ffmpeg\*"; DestDir: "{app}\ffmpeg"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+; Documentation
+Source: "..\README.md"; DestDir: "{app}"; Flags: isreadme
+Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
