@@ -8,6 +8,8 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <ApplicationIcon>res\converter.ico</ApplicationIcon>
+	
+	  <Version>0.8.1</Version>
   </PropertyGroup>
 
   <ItemGroup>

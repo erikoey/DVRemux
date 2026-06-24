@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MKV_Converter"
         mc:Ignorable="d"
-        Title="MKV to MP4 Converter v0.8" Height="600" Width="850" MinWidth="750" MinHeight="500"
+        Title="MKV to MP4 Converter" Height="600" Width="850" MinWidth="750" MinHeight="500"
         Icon="res/converter.ico">
     <Window.Resources>
         <local:BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>

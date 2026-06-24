@@ -26,6 +26,15 @@ namespace MKV_Converter
             HistoryFiles = new ObservableCollection<MediaFile>();
             QueueGrid.ItemsSource = QueuedFiles;
             HistoryGrid.ItemsSource = HistoryFiles;
+
+            // Grab the version from the assembly
+            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+
+            // Set the title dynamically (e.g., "MKV to MP4 Converter v0.8")
+            if (version != null)
+            {
+                this.Title = $"MKV to MP4 Converter v{version.Major}.{version.Minor}.{version.Build}";
+            }
         }
 
         private async void SelectFiles_Click(object sender, RoutedEventArgs e)
