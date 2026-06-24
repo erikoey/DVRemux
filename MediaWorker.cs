@@ -61,6 +61,9 @@ namespace MKV_Converter
                     int maxAudioChannels = 0;
                     bool requiresAudioConversion = false;
 
+                    // Counter for subtitle streams
+                    int subtitleStreamIndex = 0;
+
                     foreach (var stream in streams)
                     {
                         if (stream.TryGetProperty("codec_type", out var codecType) && codecType.GetString() == "video")
@@ -87,10 +90,55 @@ namespace MKV_Converter
                         else if (stream.TryGetProperty("codec_type", out codecType) && codecType.GetString() == "subtitle")
                         {
                             string codecName = stream.TryGetProperty("codec_name", out var cn) ? cn.GetString() : "unknown";
+
+                            // NEW: Actively detect if the stream is empty
+                            bool isEmpty = false;
+
+                            // 1. Check if the codec is completely unknown/missing
+                            if (codecName == "unknown")
+                            {
+                                isEmpty = true;
+                            }
+
+                            // 2. Check MKV tags for zero frames or zero bytes
+                            if (stream.TryGetProperty("tags", out var tags))
+                            {
+                                // check the number frames, to detect forced frames and mark them as empty
+                                tags.TryGetProperty("NUMBER_OF_FRAMES", out var framesElement);
+
+                                int.TryParse(framesElement.GetString(), out int frames);
+
+                                if (frames < 50)
+                                    isEmpty = true;
+                                else
+                                {
+                                    // check the byte size, streams smaller than 1kb are considerd garbage
+
+                                    tags.TryGetProperty("NUMBER_OF_BYTES", out var bytesElement);
+
+                                    // parse to long
+                                    long.TryParse(bytesElement.GetString(), out long byteSize);
+
+                                    if (byteSize < 1024)
+                                        isEmpty = true;
+                                }
+
+
+                            }
+
+                            // Sort the stream based on our findings
                             if (Array.Exists(bitmapCodecs, c => c == codecName))
                             {
                                 mediaFile.HasBitmapSubs = true;
                             }
+                            else if (!isEmpty) // ONLY add the index if it actually contains data
+                            {
+                                mediaFile.HasTextSubs = true;
+                                mediaFile.ValidSubtitleIndices.Add(subtitleStreamIndex);
+                            }
+
+                            // Always increment the index so it matches FFmpeg's stream order perfectly
+                            subtitleStreamIndex++;
                         }
                         // NEW: Evaluate ALL audio streams
                         else if (stream.TryGetProperty("codec_type", out codecType) && codecType.GetString() == "audio")
@@ -193,11 +241,35 @@ namespace MKV_Converter
             // Conditionally apply the hvc1 tag if the video is HEVC
             string videoTag = (File.VideoCodec != null && File.VideoCodec.Equals("hevc", StringComparison.OrdinalIgnoreCase)) ? "-tag:v hvc1" : "";
 
+            /*
             string commandFlags = File.HasBitmapSubs
                 ? $"-map 0:v? -map 0:a? -c:v {videoTag} copy -c:a {audioFlag}"
                 : $"-map 0:v? -map 0:a? -map 0:s? -c:v copy {videoTag} -c:a {audioFlag} -c:s mov_text";
 
             string arguments = $"-y -fflags +genpts -i \"{File.FilePath}\" -hide_banner -loglevel warning -strict experimental {commandFlags} -map_metadata -1 -dn -map_chapters -1 -movflags +faststart -use_editlist 0 -video_track_timescale 90000 -avoid_negative_ts make_zero -strict -2 \"{outputFile}\"";
+            */
+
+
+            // NEW: Build the internal subtitle mapping dynamically
+            string subMapArgs = "";
+            string subCodecArgs = "";
+
+            // Only map text subtitles if there are no incompatible bitmap subtitles blocking the process
+            if (File.HasTextSubs && !File.HasBitmapSubs)
+            {
+                // Add a -map flag for every VALID subtitle index, ignoring empty ones
+                foreach (int subIndex in File.ValidSubtitleIndices)
+                {
+                    subMapArgs += $" -map 0:s:{subIndex}";
+                }
+                // Tell FFmpeg to convert these explicitly mapped streams to MP4 text
+                subCodecArgs = "-c:s mov_text";
+            }
+
+            // COMBINED ARGUMENTS:
+            // We use -map 0:v:0 to grab ONLY the primary video track, stripping out embedded cover art thumbnails.
+            // We inject {subMapArgs} to embed only the valid text tracks.
+            string arguments = $"-y -fflags +genpts -i \"{File.FilePath}\" -hide_banner -loglevel warning -strict experimental -map 0:v:0 -map 0:a?{subMapArgs} -c:v copy {videoTag} -c:a {audioFlag} {subCodecArgs} -map_metadata -1 -dn -map_chapters -1 -movflags +faststart -use_editlist 0 -video_track_timescale 90000 -avoid_negative_ts make_zero -strict -2 \"{outputFile}\"";
 
             return await ExecuteFfmpegWithPolling(arguments, outputFile, "Converting...");
         }

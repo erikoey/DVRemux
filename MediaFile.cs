@@ -12,12 +12,17 @@ namespace MKV_Converter
         public string FileName { get; set; }
         public string FileSize { get; set; }
         public long FileSizeBytes { get; set; }
+
+        // Video        
         public string DolbyVisionProfile { get; set; }
 
         public string VideoCodec { get; set; }
 
+        // Subtitles
+
         public bool HasBitmapSubs { get; set; }
-        public string ErrorMessage { get; set; }
+        public bool HasTextSubs { get; set; }
+        public List<int> ValidSubtitleIndices { get; set; } = new List<int>();
 
         // Audio Information
         public string OriginalAudioCodec { get; set; }
@@ -45,6 +50,8 @@ namespace MKV_Converter
         }
 
         public bool RequiresAudioConversion { get; set; }
+
+        public string ErrorMessage { get; set; }
 
         public string WarningTooltipText
         {
