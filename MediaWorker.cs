@@ -241,14 +241,6 @@ namespace MKV_Converter
             // Conditionally apply the hvc1 tag if the video is HEVC
             string videoTag = (File.VideoCodec != null && File.VideoCodec.Equals("hevc", StringComparison.OrdinalIgnoreCase)) ? "-tag:v hvc1" : "";
 
-            /*
-            string commandFlags = File.HasBitmapSubs
-                ? $"-map 0:v? -map 0:a? -c:v {videoTag} copy -c:a {audioFlag}"
-                : $"-map 0:v? -map 0:a? -map 0:s? -c:v copy {videoTag} -c:a {audioFlag} -c:s mov_text";
-
-            string arguments = $"-y -fflags +genpts -i \"{File.FilePath}\" -hide_banner -loglevel warning -strict experimental {commandFlags} -map_metadata -1 -dn -map_chapters -1 -movflags +faststart -use_editlist 0 -video_track_timescale 90000 -avoid_negative_ts make_zero -strict -2 \"{outputFile}\"";
-            */
-
 
             // NEW: Build the internal subtitle mapping dynamically
             string subMapArgs = "";
@@ -269,7 +261,7 @@ namespace MKV_Converter
             // COMBINED ARGUMENTS:
             // We use -map 0:v:0 to grab ONLY the primary video track, stripping out embedded cover art thumbnails.
             // We inject {subMapArgs} to embed only the valid text tracks.
-            string arguments = $"-y -fflags +genpts -i \"{File.FilePath}\" -hide_banner -loglevel warning -strict experimental -map 0:v:0 -map 0:a?{subMapArgs} -c:v copy {videoTag} -c:a {audioFlag} {subCodecArgs} -map_metadata -1 -dn -map_chapters -1 -movflags +faststart -use_editlist 0 -video_track_timescale 90000 -avoid_negative_ts make_zero -strict -2 \"{outputFile}\"";
+            string arguments = $"-y -fflags +genpts -i \"{File.FilePath}\" -hide_banner -loglevel warning -strict experimental -map 0:v:0 -map 0:a?{subMapArgs} -c:v copy {videoTag} -c:a {audioFlag} {subCodecArgs} -map_metadata -1 -dn -map_chapters -1 -movflags +faststart -video_track_timescale 90000 -strict -2 \"{outputFile}\"";
 
             return await ExecuteFfmpegWithPolling(arguments, outputFile, "Converting...");
         }
