@@ -1,86 +1,121 @@
-﻿# MKV to MP4 Converter - User Manual
+﻿# MKV to MP4 Converter for LG TVs - User Manual
 
 ## Table of Contents
 1. Introduction
 2. System Requirements
 3. The User Interface Explained
 4. How to Use the Application
-5. Features in Detail
+5. What Happens to Your File
+6. Troubleshooting
 
 ## 1. Introduction
-Welcome to the MKV to MP4 Converter! This application is designed to be a fast, efficient, and high-quality tool for converting `.mkv` video files into the more universally compatible `.mp4` format, specifically optimized for LG WebOS TVs.
+The MKV to MP4 Converter turns `.mkv` video files into `.mp4` files that play properly on LG webOS TVs (such as LG OLEDs), including **Dolby Vision**.
 
-The key feature of this application is that it primarily performs a **remux**, not a full re-encode. It intelligently copies the original video stream into a new container without altering it, resulting in a lightning-fast conversion with zero loss in video quality. It also features smart audio transcoding to ensure your media plays perfectly on strict players.
+The application performs a **remux**, not a re-encode: the video stream is copied into the new container unchanged, so conversion is fast and there is zero loss in picture quality. Only the parts the TV can't play are changed: unsupported audio is converted to AC3 (Dolby Digital), and subtitles that MP4 can't hold are left out.
 
 ## 2. System Requirements
 * **Windows 10 or 11 (64-bit)**.
-* **FFmpeg**: This application is a graphical interface for the command-line tool FFmpeg. `ffmpeg.exe` and `ffprobe.exe` are **bundled** with the application (in the `ffmpeg` folder next to the program), so there is nothing extra to download or add to your PATH.
+* **FFmpeg**: The application is a graphical interface for the command-line tool FFmpeg. `ffmpeg.exe` and `ffprobe.exe` are **bundled** with the application (in the `ffmpeg` folder next to the program), so there is nothing extra to download or add to your PATH.
 
 ## 3. The User Interface Explained
-The main window is organized into several key areas:
 
 ### A. File & Folder Controls (Top)
-* **Select .mkv Files**: Opens a standard dialog to browse and select one or more `.mkv` files to add to the conversion queue.
-* **Remove Selected**: Removes any highlighted files from the list. You can select multiple files by holding `Ctrl` or `Shift`.
-* **Clear List**: Removes all files from the list after asking for confirmation.
-* **Select Output Folder**: Allows you to choose a single, specific folder where all converted `.mp4` files will be saved. If you don't use this, each new file will be saved in the same folder as its original source file.
-* **📂 Open Output Folder**: This button becomes active after a successful conversion. Clicking it will open the designated output folder in your system's file explorer.
+* **Select .mkv Files**: Opens a dialog to choose one or more `.mkv` files to add to the queue.
+* **Remove Selected**: Removes the highlighted files from the tab you are looking at (Queue or History). Hold `Ctrl` or `Shift` to select several files. You can also press `Delete`.
+* **Clear List**: After asking for confirmation, empties both the Queue and the History.
+* **Select Output Folder**: Chooses one folder where all converted `.mp4` files are saved. If you don't choose one, each `.mp4` is saved next to its source `.mkv`. The chosen folder is shown below the buttons.
+* **📂 Open Output Folder**: Opens the chosen output folder in File Explorer. It is only available after you have selected an output folder (and not while files are being analyzed or converted). Without an output folder, use the right-click menu instead (see below).
 
-### B. The File Table
-This is the main area where your files are listed. When you add files, the application will quickly analyze them and display the following information:
-* **(Row Number)**: The native row number, indicating the order of conversion.
-* **Filename**: The name of the source file.
-* **Size**: The file's size in a human-readable format (e.g., 7.45 GB).
-* **Dolby Vision**: Indicates if a Dolby Vision video track is present and, if possible, which profile (e.g., 8.1).
-* **Audio**: Displays the detected audio codec and channel layout (e.g., DTS (5.1 Surround)).
-* **Progress / Status**: An individual progress bar or status indicator for each file.
+### B. The Queue Tab
+Files waiting to be converted. When you add files, they are analyzed first and then listed with:
+* **#**: The position in the queue, which is the order of conversion.
+* **Filename**: The source file name. A **⚠️ icon** means the file will be changed in a way you should know about; hover over it to see the details (see "Warnings" below).
+* **Size**: The file size (e.g. 7.45 GB).
+* **Dolby Vision**: `No`, or the Dolby Vision profile, e.g. `8.1`, `5` or `7`. `Error` means the file could not be analyzed.
+* **Audio**: The audio formats found, and the largest channel layout, e.g. `DTS, AC3 (5.1 Surround)`.
+* **Progress**: A progress bar for the file being converted.
 
-### C. Conversion Controls (Bottom)
-* **Start Conversion**: Begins the process of converting all the files in the list, one by one.
-* **Cancel**: Becomes active during a conversion. Clicking it will stop the currently running conversion and cancel any pending files in the queue.
+The file being converted moves to the top of the queue and is highlighted in **yellow**.
 
-### D. Status Bar (Very Bottom)
-* **Status Label (Left)**: Provides real-time feedback on what the application is doing (e.g., "Analyzing files...", "Converting...", "Finalizing file...").
+### C. The History Tab
+Finished files, newest first, with their **Status** and a row colour:
+* **Green**: Converted successfully.
+* **Red**: Failed. **Double-click** the row to see the reason (for example the FFmpeg error message).
+* **Orange**: Cancelled.
+
+### D. Right-Click Menu
+Right-click a file in either tab for:
+* **Open Source Folder**: Opens the folder that contains the `.mkv`.
+* **Open Output Folder**: Opens the folder where the `.mp4` is (or will be) saved.
+* **Remove Item(s)**: Removes the selected files from the list.
+
+### E. Conversion Controls (Bottom)
+* **Start Conversion**: Converts all files in the queue, one after another.
+* **Cancel**: Stops the conversion that is running. The incomplete `.mp4` is deleted, and the remaining files stay in the queue so you can start again later.
+
+### F. Status Bar (Very Bottom)
+* **Status Label (Left)**: Shows what the application is doing, e.g. "Analyzing files..." or "Converting Movie.mkv...".
 * **☕ Buy me a coffee (Right)**: A donate button.
 
 ## 4. How to Use the Application
-The workflow is simple and designed to be intuitive.
 
 **Step 1: Add Files to the Queue**
-You can add files in two ways:
-* Click the "Select .mkv Files" button.
-* Drag and drop any combination of `.mkv` files or folders directly onto the file table. The application will automatically scan any dropped folders and their subfolders for `.mkv` files.
+* Click "Select .mkv Files", or
+* Drag and drop `.mkv` files or whole folders onto the queue. Dropped folders are searched for `.mkv` files, including all subfolders.
 
-**Step 2: (Optional) Set an Output Folder**
-If you want all your converted files to go to one specific place, click the "Select Output Folder" button and choose a destination.
+Files that are already in the Queue or History are not added twice. Files that can't be analyzed (damaged, locked, or without a video track) are not added to the queue; they go straight to History as Failed, and the status bar tells you how many there were.
 
-**Step 3: Manage the List**
-* **Remove Files**: Select one or more files in the table and click "Remove Selected" or press the `Delete` key.
-* **Clear the List**: Click "Clear List" to remove all files.
+**Step 2: Check the Warnings (Optional)**
+Hover over any ⚠️ icon to see what will happen to that file's audio or subtitles.
+
+**Step 3: (Optional) Choose an Output Folder**
+Click "Select Output Folder" to save all `.mp4` files in one place.
 
 **Step 4: Start the Conversion**
-Click the "Start Conversion" button. The buttons at the top will be disabled, and the conversion process will begin with the first file in the list.
+Click "Start Conversion". While it runs, you can't add files (by button or drag-and-drop), remove files, clear the list or change the output folder. Add more files once the conversion has finished.
 
 **Step 5: Monitor Progress**
-* **Yellow Row**: The file currently being converted.
-* **Individual Progress Bar**: Fills up from 0% to 100%.
-* **Finalizing State**: When a progress bar reaches ~99%, it may switch to "Finalizing...". This indicates FFmpeg is writing the file's metadata, which can be slow for very large files.
-* **Green Row**: Successfully converted.
-* **Red Row**: Failed to convert. (Double-click the row to view the FFmpeg error log).
+The progress bar fills up from 0% to 100%, based on how much of the video's running time has been processed. Near the end the bar switches to a moving animation: FFmpeg is now finalizing the file (moving the index to the front so the TV can start and seek quickly), which can take a little while for very large files.
 
-**Step 6: Access Your Files**
-Once complete, the "📂 Open Output Folder" button becomes active. Click it to immediately access your newly created `.mp4` files.
+**Step 6: Find Your Files**
+Finished files move to the History tab. Use "📂 Open Output Folder", or right-click a file and choose "Open Output Folder".
 
-## 5. Features in Detail
+## 5. What Happens to Your File
 
-* **Perfect Video Remuxing**: The app perfectly copies the original video stream without altering its quality, ensuring native Dolby Vision layers remain intact for compatible LG TVs.
-* **Smart Audio Transcoding**: Not all audio formats are supported by strict built-in players (like LG WebOS, which struggles with DTS, TrueHD, and FLAC). The application checks every audio track individually: supported tracks (AAC, AC3, E-AC3, MP3) are copied untouched, and only the unsupported ones are transcoded to AC3 (Dolby Digital).
-* **Duplicate Audio Removal**: Many files carry the same audio twice, e.g. a DTS track plus an AC3 track in the same language. In that case the unsupported track is simply removed instead of being converted, because a compatible version is already there. A track is only removed when a supported track with the same language, the same kind (main audio, commentary, or audio description) and at least as many channels (up to 5.1) exists, so other languages and surround mixes are never lost. The warning icon's tooltip lists which tracks will be removed.
-* **Dynamic Audio Bitrate**: When converting audio, the app assigns the bitrate based on each track's channel count (640kbps for surround, 224kbps for stereo/mono). AC3 supports at most 5.1, so 7.1 tracks are downmixed to 5.1.
-* **Dolby Vision Profile Check**: Files with Dolby Vision Profile 7 (UHD Blu-ray dual layer) are flagged with a warning, because LG TVs don't play Profile 7 as Dolby Vision from MP4.
-* **Flawless Seeking & Scrubbing**: Remuxing MKV to MP4 can sometimes break video scrubbing (fast-forwarding/rewinding) on smart TVs due to timestamp irregularities. This app forces perfect timestamp generation (`-fflags +genpts`) to guarantee smooth playback controls.
-* **Smart Subtitle Handling**: The app automatically detects the type of subtitles. Text-based subtitles (SRT, ASS/SSA, WebVTT) are kept, while image-based subtitles (like PGS, DVD or DVB) and any other format that MP4 can't hold are skipped to prevent conversion failures. Nearly empty "forced" subtitle tracks are also skipped, as they can interfere with seeking on WebOS.
-* **Clean Cancellation**: If a conversion is cancelled or fails, the incomplete `.mp4` file is removed.
-* **No Overwriting**: Existing files are never overwritten. If `Movie.mp4` already exists (for example from an earlier conversion, or a file with the same name from another folder), the new file is saved as `Movie (1).mp4`, `Movie (2).mp4`, and so on.
-* **Safe Analysis**: Files that can't be analyzed (damaged, locked, or without a video track) are not converted. They appear in the History tab as Failed, and double-clicking them shows the reason.
-* **High-Performance Processing**: The application runs the FFmpeg conversion at full speed, ensuring it's just as fast as running commands from a console.
+### Video
+* The **first video track** is copied unchanged, so quality is identical to the source. Extra video tracks, such as embedded cover art, are left out.
+* **Dolby Vision** information is kept, and HEVC video is tagged (`hvc1`) the way LG TVs expect, so the TV recognises HEVC and Dolby Vision.
+* **Dolby Vision Profile 7** (UHD Blu-ray dual layer) is flagged with a warning: LG TVs don't play Profile 7 as Dolby Vision from MP4. Such files will most likely play as HDR10, or not at all. Profiles 5 and 8.1 are fine.
+
+### Audio
+Every audio track is checked individually:
+* **Supported** tracks (AAC, AC3, E-AC3 including Atmos, MP3, MP2) are copied unchanged.
+* **Unsupported** tracks (e.g. DTS, TrueHD, FLAC, PCM) are converted to **AC3**: 640 kbps for surround, 224 kbps for stereo and mono. AC3 supports at most 5.1, so 7.1 tracks are downmixed to 5.1.
+* **Duplicate audio is removed**: many files contain the same audio twice, e.g. DTS plus AC3 in the same language. Then the unsupported track is simply dropped instead of converted. This only happens when a supported track exists with the **same language**, the **same kind** (main audio, commentary or audio description) and **at least as many channels** (up to 5.1), so other languages, commentaries and surround mixes are never lost.
+* **Languages are kept**, so the TV can show the language of each track.
+
+### Subtitles
+* **Text subtitles** (SRT, ASS/SSA, WebVTT) are converted to the MP4 subtitle format, and their languages are kept. ASS/SSA styling (fonts, colours, positions) is lost in the process.
+* **Image-based subtitles** (PGS from Blu-rays, DVD, DVB) and any other format MP4 can't hold are left out. Text subtitles in the same file are still kept.
+* **Nearly empty subtitle tracks** (fewer than 50 subtitles or under 1 KB, typically "forced" tracks) are left out, as they can interfere with seeking on webOS.
+
+### Other Content
+* **Chapters** and **general metadata** (such as titles and tags) are removed, apart from the track languages.
+* Attachments and data tracks (e.g. fonts embedded in MKV files) are not copied.
+
+### Output File
+* The `.mp4` gets the same name as the `.mkv`. **Existing files are never overwritten**: if `Movie.mp4` already exists (from an earlier conversion, or a file with the same name from another folder), the new file is saved as `Movie (1).mp4`, `Movie (2).mp4`, and so on.
+* If a conversion fails or is cancelled, the incomplete `.mp4` is deleted.
+* Timestamps are regenerated (`-fflags +genpts`) and the file index is placed at the start (`faststart`), which helps the TV start playback and fast-forward/rewind smoothly.
+
+### Warnings (⚠️ icon)
+The icon appears when a file contains:
+* Audio that will be converted to AC3,
+* Duplicate audio that will be removed,
+* Subtitles that will be left out, or
+* Dolby Vision Profile 7.
+
+## 6. Troubleshooting
+* **A file failed**: Double-click it in the History tab to see the reason.
+* **Log file**: Each conversion's FFmpeg command and result are written to `log.txt` in the application folder. The log is cleared every time the application starts.
+* **Dolby Vision doesn't show on the TV**: Check the Dolby Vision column. Profile 7 is not supported by LG TVs in MP4 (see above).

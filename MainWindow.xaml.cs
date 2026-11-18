@@ -19,6 +19,11 @@ namespace MKV_Converter
         private string _outputFolder = string.Empty;
         private QueueManager _queueManager;
 
+        // Kept in sync by SetUiState. Used to block actions that don't go through the (disabled) buttons:
+        // drag-and-drop, the Delete key and the right-click "Remove Item(s)".
+        private bool _isConverting;
+        private bool _isAnalyzing;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -58,6 +63,7 @@ namespace MKV_Converter
 
         private void RemoveSelected_Click(object sender, RoutedEventArgs e)
         {
+            if (_isConverting) return; // also reached via the Delete key
             var dataGrid = GetFocusedDataGrid();
             if (dataGrid == null) return;
             var itemsToRemove = dataGrid.SelectedItems.Cast<MediaFile>().ToList();
@@ -80,7 +86,7 @@ namespace MKV_Converter
             {
                 _outputFolder = dialog.FileName;
                 OutputFolderLabel.Text = $"Output to: {_outputFolder}";
-                OpenFolderButton.IsEnabled = false;
+                OpenFolderButton.IsEnabled = true;
             }
         }
 
@@ -120,6 +126,7 @@ namespace MKV_Converter
 
         private void ContextRemoveItems_Click(object sender, RoutedEventArgs e)
         {
+            if (_isConverting) return;
             var dataGrid = GetDataGridFromContextMenu(sender);
             if (dataGrid == null) return;
             var itemsToRemove = dataGrid.SelectedItems.Cast<MediaFile>().ToList();
@@ -230,13 +237,21 @@ namespace MKV_Converter
 
         private void FileGrid_DragEnter(object sender, DragEventArgs e)
         {
-            if (e.Data.GetDataPresent(DataFormats.FileDrop)) { e.Effects = DragDropEffects.Copy; }
-            else { e.Effects = DragDropEffects.None; }
+            bool canDrop = e.Data.GetDataPresent(DataFormats.FileDrop) && !_isConverting && !_isAnalyzing;
+            e.Effects = canDrop ? DragDropEffects.Copy : DragDropEffects.None;
             e.Handled = true;
         }
 
         private async void FileGrid_Drop(object sender, DragEventArgs e)
         {
+            // Adding files while busy would re-enable all buttons (incl. Start) once the analysis finishes
+            if (_isConverting || _isAnalyzing)
+            {
+                StatusLabel.Text = _isConverting
+                    ? "Files can't be added during a conversion. Add them when it has finished."
+                    : "Please wait until the current files have been analyzed.";
+                return;
+            }
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 try { await AddFilesAndFolders((string[])e.Data.GetData(DataFormats.FileDrop)); }
@@ -335,6 +350,8 @@ namespace MKV_Converter
         private void SetUiState(bool isBusy, bool isAnalyzing = false)
         {
             bool isConverting = isBusy && !isAnalyzing;
+            _isConverting = isConverting;
+            _isAnalyzing = isBusy && isAnalyzing;
 
             SelectFilesButton.IsEnabled = !isBusy;
             RemoveSelectedButton.IsEnabled = !isConverting;
