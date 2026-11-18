@@ -41,7 +41,8 @@ namespace MKV_Converter
         {
             while (!_isCancellationRequested)
             {
-                MediaFile fileToProcess = _queuedFiles.FirstOrDefault(f => f.Status == "Pending");
+                // The collections are owned by the UI thread, so read them there
+                MediaFile fileToProcess = App.Current.Dispatcher.Invoke(() => _queuedFiles.FirstOrDefault(f => f.Status == "Pending"));
 
                 if (fileToProcess == null)
                 {

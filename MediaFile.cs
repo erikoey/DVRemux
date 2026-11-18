@@ -6,6 +6,15 @@ using System.Windows.Media;
 
 namespace MKV_Converter
 {
+    public class AudioTrack
+    {
+        // Index among the file's audio streams (FFmpeg's 0:a:N)
+        public int Index { get; set; }
+        public string Codec { get; set; }
+        public int Channels { get; set; }
+        public bool RequiresConversion { get; set; }
+    }
+
     public class MediaFile : INotifyPropertyChanged
     {
         public string FilePath { get; set; }
@@ -49,7 +58,15 @@ namespace MKV_Converter
             }
         }
 
-        public bool RequiresAudioConversion { get; set; }
+        public List<AudioTrack> AudioTracks { get; } = new List<AudioTrack>();
+
+        public bool RequiresAudioConversion => AudioTracks.Any(t => t.RequiresConversion);
+
+        // Container duration from ffprobe, used for time-based progress (0 = unknown)
+        public double DurationSeconds { get; set; }
+
+        // Profile 7 (UHD Blu-ray dual layer) is not played as Dolby Vision from MP4 by LG TVs
+        public bool HasUnsupportedDolbyVisionProfile => DolbyVisionProfile == "7";
 
         public string ErrorMessage { get; set; }
 
@@ -58,13 +75,18 @@ namespace MKV_Converter
             get
             {
                 string warnings = "";
+                if (HasUnsupportedDolbyVisionProfile) warnings += "• Dolby Vision Profile 7 is not supported by LG TVs in MP4. It will likely play as HDR10 without Dolby Vision, or not at all.\n";
                 if (HasBitmapSubs) warnings += "• Contains image-based subtitles that will be stripped.\n";
-                if (RequiresAudioConversion) warnings += $"• Unsupported audio ({OriginalAudioCodec}) will be converted to AC3.\n";
+                if (RequiresAudioConversion)
+                {
+                    string codecs = string.Join(", ", AudioTracks.Where(t => t.RequiresConversion).Select(t => t.Codec.ToUpper()).Distinct());
+                    warnings += $"• Unsupported audio ({codecs}) will be converted to AC3. Other audio tracks are copied as-is.\n";
+                }
                 return warnings.TrimEnd('\n');
             }
         }
 
-        public bool ShowWarningIcon => HasBitmapSubs || RequiresAudioConversion;
+        public bool ShowWarningIcon => HasBitmapSubs || RequiresAudioConversion || HasUnsupportedDolbyVisionProfile;
 
         private string _progressText = "Pending";
         public string ProgressText { get => _progressText; set { _progressText = value; OnPropertyChanged(); } }

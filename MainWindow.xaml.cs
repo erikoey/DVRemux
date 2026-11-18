@@ -204,8 +204,6 @@ namespace MKV_Converter
                 {
                     MessageBox.Show("The conversion was cancelled.", "Cancelled", MessageBoxButton.OK, MessageBoxImage.Warning);
                     StatusLabel.Text = "Conversion cancelled.";
-                    var processingFile = HistoryFiles.FirstOrDefault(f => f.Status == "In Progress...");
-                    if (processingFile != null) { processingFile.Status = "Cancelled"; }
                 }
                 else
                 {

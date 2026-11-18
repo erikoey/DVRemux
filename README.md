@@ -13,14 +13,8 @@ Welcome to the MKV to MP4 Converter! This application is designed to be a fast, 
 The key feature of this application is that it primarily performs a **remux**, not a full re-encode. It intelligently copies the original video stream into a new container without altering it, resulting in a lightning-fast conversion with zero loss in video quality. It also features smart audio transcoding to ensure your media plays perfectly on strict players.
 
 ## 2. System Requirements
-Before you begin, there is one essential piece of software you must have installed on your system.
-
-**FFmpeg**: This application is a graphical interface for the powerful command-line tool FFmpeg. You must download it and make it accessible to the application.
-* **Download**: Get a build of FFmpeg from a trusted source (e.g., gyan.dev for Windows).
-* **Extract**: Unzip the file to a permanent location on your computer (e.g., `C:\ffmpeg`).
-* **Add to PATH**: Add the `bin` folder from your FFmpeg installation (e.g., `C:\ffmpeg\bin`) to your system's PATH environment variable. This allows the application to find and use `ffmpeg.exe` and `ffprobe.exe`.
-
-*Note: The application will guide you through this process on startup if FFmpeg is not found.*
+* **Windows 10 or 11 (64-bit)**.
+* **FFmpeg**: This application is a graphical interface for the command-line tool FFmpeg. `ffmpeg.exe` and `ffprobe.exe` are **bundled** with the application (in the `ffmpeg` folder next to the program), so there is nothing extra to download or add to your PATH.
 
 ## 3. The User Interface Explained
 The main window is organized into several key areas:
@@ -80,8 +74,10 @@ Once complete, the "📂 Open Output Folder" button becomes active. Click it to 
 ## 5. Features in Detail
 
 * **Perfect Video Remuxing**: The app perfectly copies the original video stream without altering its quality, ensuring native Dolby Vision layers remain intact for compatible LG TVs.
-* **Smart Audio Transcoding**: Not all audio formats are supported by strict built-in players (like LG WebOS, which struggles with DTS, TrueHD, and FLAC). The application automatically detects unsupported codecs and seamlessly transcodes them to universally supported AC3 (Dolby Digital) on the fly.
-* **Dynamic Audio Bitrate**: When converting audio, the app assigns the bitrate based on the channel count (e.g., 640kbps for 5.1/7.1 Surround, and 224kbps for 2.0 Stereo) to preserve high audio quality without causing unnecessary file bloat.
+* **Smart Audio Transcoding**: Not all audio formats are supported by strict built-in players (like LG WebOS, which struggles with DTS, TrueHD, and FLAC). The application checks every audio track individually: supported tracks (AAC, AC3, E-AC3, MP3) are copied untouched, and only the unsupported ones are transcoded to AC3 (Dolby Digital).
+* **Dynamic Audio Bitrate**: When converting audio, the app assigns the bitrate based on each track's channel count (640kbps for surround, 224kbps for stereo/mono). AC3 supports at most 5.1, so 7.1 tracks are downmixed to 5.1.
+* **Dolby Vision Profile Check**: Files with Dolby Vision Profile 7 (UHD Blu-ray dual layer) are flagged with a warning, because LG TVs don't play Profile 7 as Dolby Vision from MP4.
 * **Flawless Seeking & Scrubbing**: Remuxing MKV to MP4 can sometimes break video scrubbing (fast-forwarding/rewinding) on smart TVs due to timestamp irregularities. This app forces perfect timestamp generation (`-fflags +genpts`) to guarantee smooth playback controls.
-* **Smart Subtitle Handling**: The script automatically detects the type of subtitles. It includes text-based subtitles but safely skips incompatible image-based subtitles (like PGS) to prevent conversion failures.
+* **Smart Subtitle Handling**: The app automatically detects the type of subtitles. Text-based subtitles are kept, while incompatible image-based subtitles (like PGS) are skipped to prevent conversion failures. Nearly empty "forced" subtitle tracks are also skipped, as they can interfere with seeking on WebOS.
+* **Clean Cancellation**: If a conversion is cancelled or fails, the incomplete `.mp4` file is removed.
 * **High-Performance Processing**: The application runs the FFmpeg conversion at full speed, ensuring it's just as fast as running commands from a console.
