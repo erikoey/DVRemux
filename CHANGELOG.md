@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.8.4] - 2026-11-18
 
 ### Fixed
 - **No Overwriting**: Existing `.mp4` files are never overwritten (previously `-y` replaced them, and a failed conversion then deleted them). Name clashes get a numbered suffix, e.g. `Movie (1).mp4`, which also covers same-named files from different folders going to one output folder.

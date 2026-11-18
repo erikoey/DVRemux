@@ -9,8 +9,8 @@
     <UseWPF>true</UseWPF>
     <ApplicationIcon>res\converter.ico</ApplicationIcon>
 
-    <PackageVersion>0.8.3</PackageVersion>
-	  <Version>0.8.3</Version>
+    <PackageVersion>0.8.4</PackageVersion>
+	  <Version>0.8.4</Version>
   </PropertyGroup>
 
   <ItemGroup>
