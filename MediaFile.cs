@@ -43,7 +43,9 @@ namespace MKV_Converter
 
         // Subtitles
 
-        public bool HasBitmapSubs { get; set; }
+        // Image-based (PGS, DVD, DVB...) or unknown subtitle tracks, which are stripped
+        public bool HasUnsupportedSubs { get; set; }
+        public List<string> SkippedSubtitleCodecs { get; } = new List<string>();
         public bool HasTextSubs { get; set; }
         public List<int> ValidSubtitleIndices { get; set; } = new List<int>();
 
@@ -89,13 +91,19 @@ namespace MKV_Converter
 
         public string ErrorMessage { get; set; }
 
+        // Set when ffprobe analysis failed; such files are never converted
+        public string AnalysisError { get; set; }
+
+        // The .mp4 path chosen for this file when its conversion started
+        public string OutputPath { get; set; }
+
         public string WarningTooltipText
         {
             get
             {
                 string warnings = "";
                 if (HasUnsupportedDolbyVisionProfile) warnings += "• Dolby Vision Profile 7 is not supported by LG TVs in MP4. It will likely play as HDR10 without Dolby Vision, or not at all.\n";
-                if (HasBitmapSubs) warnings += "• Contains image-based subtitles that will be stripped.\n";
+                if (HasUnsupportedSubs) warnings += $"• Contains image-based or unsupported subtitles ({string.Join(", ", SkippedSubtitleCodecs)}) that will be stripped. Text subtitles are kept.\n";
                 if (RequiresAudioConversion)
                 {
                     string tracks = string.Join(", ", AudioTracks.Where(t => t.RequiresConversion && t.IsKept).Select(t => t.Describe()));
@@ -110,7 +118,7 @@ namespace MKV_Converter
             }
         }
 
-        public bool ShowWarningIcon => HasBitmapSubs || RequiresAudioConversion || HasRedundantAudio || HasUnsupportedDolbyVisionProfile;
+        public bool ShowWarningIcon => HasUnsupportedSubs || RequiresAudioConversion || HasRedundantAudio || HasUnsupportedDolbyVisionProfile;
 
         private string _progressText = "Pending";
         public string ProgressText { get => _progressText; set { _progressText = value; OnPropertyChanged(); } }

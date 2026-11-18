@@ -23,41 +23,53 @@ namespace MKV_Converter
         private const int MinSubtitleFrames = 50;
         private const long MinSubtitleBytes = 1024;
 
-        private static readonly string[] BitmapSubtitleCodecs = { "hdmv_pgs_subtitle", "dvd_subtitle" };
+        // Only these text formats can be converted to MP4's mov_text. Everything else (PGS, DVD, DVB, XSUB,
+        // teletext, unknown...) is skipped, because a single unconvertible track would make ffmpeg fail the whole file.
+        private static readonly string[] TextSubtitleCodecs = { "subrip", "srt", "ass", "ssa", "webvtt", "mov_text", "text" };
         private static readonly string[] SupportedAudioCodecs = { "aac", "ac3", "eac3", "mp3", "mp2" };
 
+        /// <summary>
+        /// Analyzes a file with ffprobe. Never throws: on any failure the returned MediaFile has
+        /// AnalysisError set, and such files must not be converted.
+        /// </summary>
         public static async Task<MediaFile> AnalyzeFileAsync(string filePath)
         {
-            var fileInfo = new FileInfo(filePath);
             var mediaFile = new MediaFile
             {
                 FilePath = filePath,
-                FileName = fileInfo.Name,
-                FileSizeBytes = fileInfo.Length,
-                FileSize = FormatFileSize(fileInfo.Length)
+                FileName = Path.GetFileName(filePath),
+                FileSize = "?"
             };
-
-            string ffprobePath = Path.Combine(AppContext.BaseDirectory, "ffmpeg", "ffprobe.exe");
-
-            var processStartInfo = new ProcessStartInfo(ffprobePath, $"-v quiet -print_format json -show_format -show_streams \"{filePath}\"")
-            {
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8
-            };
-
-            using var process = Process.Start(processStartInfo);
-            var outputTask = process.StandardOutput.ReadToEndAsync();
-            var errorTask = process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
-            string jsonOutput = await outputTask;
-            await errorTask;
 
             try
             {
-                if (!string.IsNullOrEmpty(jsonOutput))
+                var fileInfo = new FileInfo(filePath);
+                mediaFile.FileSizeBytes = fileInfo.Length;
+                mediaFile.FileSize = FormatFileSize(fileInfo.Length);
+
+                string ffprobePath = Path.Combine(AppContext.BaseDirectory, "ffmpeg", "ffprobe.exe");
+
+                var processStartInfo = new ProcessStartInfo(ffprobePath, $"-v error -print_format json -show_format -show_streams \"{filePath}\"")
+                {
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    StandardOutputEncoding = Encoding.UTF8
+                };
+
+                using var process = Process.Start(processStartInfo);
+                var outputTask = process.StandardOutput.ReadToEndAsync();
+                var errorTask = process.StandardError.ReadToEndAsync();
+                await process.WaitForExitAsync();
+                string jsonOutput = await outputTask;
+                string ffprobeErrors = (await errorTask).Trim();
+
+                if (process.ExitCode != 0 || string.IsNullOrWhiteSpace(jsonOutput))
+                {
+                    throw new InvalidOperationException($"ffprobe could not read the file (exit code {process.ExitCode}). {ffprobeErrors}".Trim());
+                }
+
                 {
                     using var doc = JsonDocument.Parse(jsonOutput);
 
@@ -106,10 +118,11 @@ namespace MKV_Converter
                         }
                         else if (codecType == "subtitle")
                         {
-                            if (Array.Exists(BitmapSubtitleCodecs, c => c == codecName))
+                            if (!Array.Exists(TextSubtitleCodecs, c => string.Equals(c, codecName, StringComparison.OrdinalIgnoreCase)))
                             {
-                                // Bitmap subs can't be converted to mov_text; they are simply not mapped.
-                                mediaFile.HasBitmapSubs = true;
+                                // Image-based or unknown subs can't be converted to mov_text; they are simply not mapped.
+                                mediaFile.HasUnsupportedSubs = true;
+                                if (!mediaFile.SkippedSubtitleCodecs.Contains(codecName)) mediaFile.SkippedSubtitleCodecs.Add(codecName);
                             }
                             else if (!IsEmptySubtitleStream(stream, codecName))
                             {
@@ -148,11 +161,17 @@ namespace MKV_Converter
                             mediaFile.AudioTracks.Select(t => t.Codec).Distinct(StringComparer.OrdinalIgnoreCase)).ToUpper();
                         mediaFile.AudioChannels = mediaFile.AudioTracks.Max(t => t.Channels);
                     }
+
+                    if (string.IsNullOrEmpty(mediaFile.VideoCodec))
+                    {
+                        throw new InvalidOperationException("No video stream found.");
+                    }
                 }
             }
             catch (Exception ex)
             {
                 Logger.Log($"Error analyzing {filePath}: {ex.Message}");
+                mediaFile.AnalysisError = ex.Message;
                 mediaFile.DolbyVisionProfile = "Error";
             }
 
@@ -294,10 +313,33 @@ namespace MKV_Converter
 
         public async Task<ConversionResult> RunConversionAsync()
         {
-            string outputFile = Path.Combine(string.IsNullOrEmpty(_outputFolder) ? Path.GetDirectoryName(File.FilePath) : _outputFolder, $"{Path.GetFileNameWithoutExtension(File.FilePath)}.mp4");
+            if (!string.IsNullOrEmpty(File.AnalysisError))
+            {
+                // Without a valid analysis the audio/subtitle mapping would be incomplete, so never convert
+                return new ConversionResult { Success = false, ErrorMessage = $"File analysis failed: {File.AnalysisError}" };
+            }
+
+            string outputFolder = string.IsNullOrEmpty(_outputFolder) ? Path.GetDirectoryName(File.FilePath) : _outputFolder;
+            string outputFile = GetUniqueOutputPath(outputFolder, Path.GetFileNameWithoutExtension(File.FilePath));
+            File.OutputPath = outputFile;
+
             string arguments = BuildArguments(File, outputFile);
             Logger.Log($"ffmpeg {arguments}");
             return await ExecuteFfmpegWithPolling(arguments, outputFile, "Converting...");
+        }
+
+        /// <summary>
+        /// Returns "name.mp4", or "name (1).mp4", "name (2).mp4", ... if that file already exists, so an existing
+        /// file (an earlier conversion, or a same-named file from another folder) is never overwritten.
+        /// </summary>
+        public static string GetUniqueOutputPath(string folder, string baseName)
+        {
+            string candidate = Path.Combine(folder, $"{baseName}.mp4");
+            for (int n = 1; System.IO.File.Exists(candidate); n++)
+            {
+                candidate = Path.Combine(folder, $"{baseName} ({n}).mp4");
+            }
+            return candidate;
         }
 
         public static string BuildArguments(MediaFile file, string outputFile)
@@ -356,8 +398,11 @@ namespace MKV_Converter
                 AppendLanguage(languageArgs, "s", outIndex, language);
             }
 
+            // -n: never overwrite an existing file (the output path is chosen to be free; this is a safety net).
             // -map 0:v:0 grabs ONLY the primary video track, stripping out embedded cover art thumbnails.
-            return $"-y -fflags +genpts -i \"{file.FilePath}\" -hide_banner -nostats -loglevel warning -progress pipe:1 " +
+            // -strict -2 (experimental) is REQUIRED for Dolby Vision: ffmpeg only writes the dvcC/dvvC box into the
+            // MP4 at "-strict unofficial" or lower. Without it the TV plays the file as plain HDR10.
+            return $"-n -fflags +genpts -i \"{file.FilePath}\" -hide_banner -nostats -loglevel warning -progress pipe:1 " +
                    $"-map 0:v:0{audioArgs}{subArgs} -c:v copy{videoTag} " +
                    $"-map_metadata -1{languageArgs} -dn -map_chapters -1 -movflags +faststart -video_track_timescale 90000 -strict -2 \"{outputFile}\"";
         }
@@ -381,6 +426,10 @@ namespace MKV_Converter
                 CreateNoWindow = true
             };
 
+            // Only ever delete a partial output that this run created
+            bool outputExistedBefore = System.IO.File.Exists(outputFile);
+            void CleanUp() { if (!outputExistedBefore) DeletePartialOutput(outputFile); }
+
             try
             {
                 _process = Process.Start(processStartInfo);
@@ -393,7 +442,7 @@ namespace MKV_Converter
                     {
                         _process.Kill(true);
                         _process.WaitForExit();
-                        DeletePartialOutput(outputFile);
+                        CleanUp();
                         Logger.Log($"Cancelled: {File.FilePath}");
                         return new ConversionResult { Success = false, ErrorMessage = "Cancelled" };
                     }
@@ -418,7 +467,7 @@ namespace MKV_Converter
                 }
                 else
                 {
-                    DeletePartialOutput(outputFile);
+                    CleanUp();
                 }
 
                 Logger.Log($"{(success ? "Success" : $"Failed (exit {_process.ExitCode})")}: {File.FilePath}{(string.IsNullOrWhiteSpace(errorOutput) ? "" : Environment.NewLine + errorOutput.Trim())}");

@@ -275,10 +275,30 @@ namespace MKV_Converter
             }
         }
 
+        /// <summary>
+        /// Analyzes a file and adds it to the queue. A file whose analysis failed can't be converted safely,
+        /// so it goes straight to History as Failed, with the reason shown on double-click.
+        /// </summary>
+        private async Task<bool> AddAnalyzedFile(string path)
+        {
+            var mediaFile = await AnalysisWorker.AnalyzeFileAsync(path);
+            if (string.IsNullOrEmpty(mediaFile.AnalysisError))
+            {
+                QueuedFiles.Add(mediaFile);
+                return true;
+            }
+
+            mediaFile.Status = "Failed";
+            mediaFile.ErrorMessage = $"File analysis failed, so the file was not converted:\n{mediaFile.AnalysisError}";
+            HistoryFiles.Insert(0, mediaFile);
+            return false;
+        }
+
         private async Task AddFilesAndFolders(string[] paths)
         {
             SetUiState(true, isAnalyzing: true);
             StatusLabel.Text = "Analyzing files...";
+            int failedCount = 0;
             try
             {
                 foreach (var path in paths)
@@ -289,8 +309,7 @@ namespace MKV_Converter
                         {
                             if (!QueuedFiles.Any(f => f.FilePath == file) && !HistoryFiles.Any(f => f.FilePath == file))
                             {
-                                var mediaFile = await AnalysisWorker.AnalyzeFileAsync(file);
-                                QueuedFiles.Add(mediaFile);
+                                if (!await AddAnalyzedFile(file)) failedCount++;
                             }
                         }
                     }
@@ -298,8 +317,7 @@ namespace MKV_Converter
                     {
                         if (!QueuedFiles.Any(f => f.FilePath == path) && !HistoryFiles.Any(f => f.FilePath == path))
                         {
-                            var mediaFile = await AnalysisWorker.AnalyzeFileAsync(path);
-                            QueuedFiles.Add(mediaFile);
+                            if (!await AddAnalyzedFile(path)) failedCount++;
                         }
                     }
                 }
@@ -308,7 +326,9 @@ namespace MKV_Converter
             finally
             {
                 SetUiState(false);
-                StatusLabel.Text = "Analysis complete.";
+                StatusLabel.Text = failedCount == 0
+                    ? "Analysis complete."
+                    : $"Analysis complete. {failedCount} file(s) could not be analyzed and were moved to History (double-click for details).";
             }
         }
 

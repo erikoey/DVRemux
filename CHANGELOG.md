@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- **No Overwriting**: Existing `.mp4` files are never overwritten (previously `-y` replaced them, and a failed conversion then deleted them). Name clashes get a numbered suffix, e.g. `Movie (1).mp4`, which also covers same-named files from different folders going to one output folder.
+- **Failed Analysis**: Files that ffprobe can't read (or that have no video stream) are no longer converted, which could silently produce MP4s without audio. They go to History as Failed with the reason. One unreadable file no longer stops the rest of a drop from being added.
+- **Subtitle Formats**: Only known text subtitle formats are converted to mov_text. DVB, XSUB and other non-text tracks are skipped instead of making the whole conversion fail.
+
 ## [0.8.3] - 2026-11-18
 
 ### Added
