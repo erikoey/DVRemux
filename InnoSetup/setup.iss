@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "MKV to MP4 for LG Dolby Vision TV"
-#define MyAppVersion "0.8.4"
+#define MyAppVersion "0.8.5"
 #define MyAppPublisher "Erik Oey"
 #define MyAppURL "https://www.bitpunked.com"
 #define MyAppExeName "MKV_Converter.exe"

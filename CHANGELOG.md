@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.5] - 2026-11-18
+
+### Changed
+- **User Manual**: The README was rewritten to describe the current behaviour in detail (Queue/History tabs, warnings, right-click menu, and what happens to video, audio, subtitles, chapters and metadata), with a new troubleshooting section.
+
+### Fixed
+- Dropping files during a conversion re-enabled all buttons, including Start, once their analysis finished. Drag-and-drop is now ignored while converting or analyzing.
+- The `Delete` key and the right-click "Remove Item(s)" no longer remove files during a conversion.
+- "Open Output Folder" is now available right after choosing an output folder, instead of only after the next analysis or conversion.
+
 ## [0.8.4] - 2026-11-18
 
 ### Fixed
