@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.3] - 2026-11-18
+
+### Added
+- **Duplicate Audio Removal**: An unsupported audio track (e.g. DTS) is dropped instead of converted when a supported track (e.g. AC3) with the same language, role (main/commentary/description) and at least as many channels (up to 5.1) already exists. Removed tracks are listed in the warning tooltip.
+
+### Fixed
+- **Track Languages**: Audio and subtitle tracks keep their language in the MP4 (previously all were "und" because `-map_metadata -1` strips stream metadata), so the TV can label them.
+
 ## [0.8.2] - 2026-11-18
 
 ### Added

@@ -115,6 +115,7 @@ namespace MKV_Converter
                             {
                                 mediaFile.HasTextSubs = true;
                                 mediaFile.ValidSubtitleIndices.Add(subtitleStreamIndex);
+                                mediaFile.SubtitleLanguages[subtitleStreamIndex] = GetLanguage(stream);
                             }
 
                             // Always increment so the index matches FFmpeg's 0:s:N numbering
@@ -130,12 +131,16 @@ namespace MKV_Converter
                                 Index = audioStreamIndex,
                                 Codec = codecName,
                                 Channels = channels,
-                                RequiresConversion = needsConversion
+                                RequiresConversion = needsConversion,
+                                Language = GetLanguage(stream),
+                                Role = GetAudioRole(stream)
                             });
 
                             audioStreamIndex++;
                         }
                     }
+
+                    MarkRedundantAudioTracks(mediaFile.AudioTracks);
 
                     if (mediaFile.AudioTracks.Count > 0)
                     {
@@ -153,6 +158,50 @@ namespace MKV_Converter
 
             if (string.IsNullOrEmpty(mediaFile.DolbyVisionProfile)) mediaFile.DolbyVisionProfile = "No";
             return mediaFile;
+        }
+
+        /// <summary>
+        /// An unsupported track (e.g. DTS) is redundant when a supported track (e.g. AC3) with the same language
+        /// and role already exists, and that track has at least as many channels as the AC3 conversion would produce
+        /// (AC3 is capped at 5.1). This avoids e.g. dropping a 5.1 DTS track in favour of a stereo AC3 track.
+        /// </summary>
+        private static void MarkRedundantAudioTracks(List<AudioTrack> tracks)
+        {
+            foreach (var track in tracks.Where(t => t.RequiresConversion))
+            {
+                int convertedChannels = Math.Min(track.Channels, 6);
+                track.IsRedundant = tracks.Any(s =>
+                    !s.RequiresConversion &&
+                    string.Equals(s.Language, track.Language, StringComparison.OrdinalIgnoreCase) &&
+                    s.Role == track.Role &&
+                    s.Channels >= convertedChannels);
+            }
+        }
+
+        private static string GetLanguage(JsonElement stream)
+        {
+            if (stream.TryGetProperty("tags", out var tags) && tags.ValueKind == JsonValueKind.Object)
+            {
+                string language = GetTag(tags, "language");
+                if (!string.IsNullOrWhiteSpace(language)) return language.Trim().ToLowerInvariant();
+            }
+            return "und";
+        }
+
+        private static string GetAudioRole(JsonElement stream)
+        {
+            if (stream.TryGetProperty("disposition", out var disposition) && disposition.ValueKind == JsonValueKind.Object)
+            {
+                if (GetInt(disposition, "comment") == 1) return "commentary";
+                if (GetInt(disposition, "visual_impaired") == 1) return "description";
+            }
+            if (stream.TryGetProperty("tags", out var tags) && tags.ValueKind == JsonValueKind.Object)
+            {
+                string title = GetTag(tags, "title") ?? "";
+                if (title.Contains("comment", StringComparison.OrdinalIgnoreCase)) return "commentary";
+                if (title.Contains("descri", StringComparison.OrdinalIgnoreCase)) return "description";
+            }
+            return "main";
         }
 
         /// <summary>
@@ -256,27 +305,30 @@ namespace MKV_Converter
             // Apply the hvc1 tag for HEVC so LG recognises HEVC / Dolby Vision in MP4
             string videoTag = (file.VideoCodec != null && file.VideoCodec.Equals("hevc", StringComparison.OrdinalIgnoreCase)) ? " -tag:v hvc1" : "";
 
-            // Audio: map every track explicitly, copy the supported ones and convert only the unsupported ones to AC3.
-            // Output audio stream N corresponds to input audio stream N, so per-stream specifiers line up.
+            // Audio: map the kept tracks explicitly (redundant unsupported tracks are dropped), copy the supported
+            // ones and convert only the unsupported ones to AC3.
+            // -map uses the INPUT audio index; -c:a:N / -b:a:N / -ac:a:N use the OUTPUT audio index.
+            var keptTracks = file.AudioTracks.Where(t => t.IsKept).ToList();
             var audioArgs = new StringBuilder();
-            foreach (var track in file.AudioTracks)
+            foreach (var track in keptTracks)
             {
                 audioArgs.Append($" -map 0:a:{track.Index}");
             }
-            foreach (var track in file.AudioTracks)
+            for (int outIndex = 0; outIndex < keptTracks.Count; outIndex++)
             {
+                var track = keptTracks[outIndex];
                 if (!track.RequiresConversion)
                 {
-                    audioArgs.Append($" -c:a:{track.Index} copy");
+                    audioArgs.Append($" -c:a:{outIndex} copy");
                     continue;
                 }
 
                 string bitrate = track.Channels >= 6 ? "640k" : "224k";
-                audioArgs.Append($" -c:a:{track.Index} ac3 -b:a:{track.Index} {bitrate}");
+                audioArgs.Append($" -c:a:{outIndex} ac3 -b:a:{outIndex} {bitrate}");
                 if (track.Channels > 6)
                 {
                     // AC3 supports at most 5.1, so downmix anything larger
-                    audioArgs.Append($" -ac:a:{track.Index} 6");
+                    audioArgs.Append($" -ac:a:{outIndex} 6");
                 }
             }
 
@@ -291,10 +343,30 @@ namespace MKV_Converter
                 subArgs.Append(" -c:s mov_text");
             }
 
+            // -map_metadata -1 strips all metadata, including track languages, so write the languages back
+            // explicitly (by OUTPUT index) so the TV can label audio and subtitle tracks.
+            var languageArgs = new StringBuilder();
+            for (int outIndex = 0; outIndex < keptTracks.Count; outIndex++)
+            {
+                AppendLanguage(languageArgs, "a", outIndex, keptTracks[outIndex].Language);
+            }
+            for (int outIndex = 0; outIndex < file.ValidSubtitleIndices.Count; outIndex++)
+            {
+                file.SubtitleLanguages.TryGetValue(file.ValidSubtitleIndices[outIndex], out string language);
+                AppendLanguage(languageArgs, "s", outIndex, language);
+            }
+
             // -map 0:v:0 grabs ONLY the primary video track, stripping out embedded cover art thumbnails.
             return $"-y -fflags +genpts -i \"{file.FilePath}\" -hide_banner -nostats -loglevel warning -progress pipe:1 " +
                    $"-map 0:v:0{audioArgs}{subArgs} -c:v copy{videoTag} " +
-                   $"-map_metadata -1 -dn -map_chapters -1 -movflags +faststart -video_track_timescale 90000 -strict -2 \"{outputFile}\"";
+                   $"-map_metadata -1{languageArgs} -dn -map_chapters -1 -movflags +faststart -video_track_timescale 90000 -strict -2 \"{outputFile}\"";
+        }
+
+        private static void AppendLanguage(StringBuilder args, string streamType, int outIndex, string language)
+        {
+            // Only plain language codes (e.g. "eng", "ger"); anything else is left out of the command line
+            if (string.IsNullOrEmpty(language) || language == "und" || !language.All(char.IsAsciiLetterLower)) return;
+            args.Append($" -metadata:s:{streamType}:{outIndex} language={language}");
         }
 
         private async Task<ConversionResult> ExecuteFfmpegWithPolling(string arguments, string outputFile, string initialStatusText)

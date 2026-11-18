@@ -13,6 +13,20 @@ namespace MKV_Converter
         public string Codec { get; set; }
         public int Channels { get; set; }
         public bool RequiresConversion { get; set; }
+
+        // ISO 639-2 language from the MKV tags ("und" when missing)
+        public string Language { get; set; } = "und";
+
+        // "main", "commentary" or "description" (audio description for the visually impaired)
+        public string Role { get; set; } = "main";
+
+        // Unsupported track that is dropped because a supported track with the same language,
+        // role and at least as many (AC3-capable) channels already exists
+        public bool IsRedundant { get; set; }
+
+        public bool IsKept => !IsRedundant;
+
+        public string Describe() => $"{Codec.ToUpper()} {Language}{(Role == "main" ? "" : $" {Role}")} {Channels}ch";
     }
 
     public class MediaFile : INotifyPropertyChanged
@@ -32,6 +46,9 @@ namespace MKV_Converter
         public bool HasBitmapSubs { get; set; }
         public bool HasTextSubs { get; set; }
         public List<int> ValidSubtitleIndices { get; set; } = new List<int>();
+
+        // Language per input subtitle index (FFmpeg's 0:s:N), "und" when missing
+        public Dictionary<int, string> SubtitleLanguages { get; } = new Dictionary<int, string>();
 
         // Audio Information
         public string OriginalAudioCodec { get; set; }
@@ -60,7 +77,9 @@ namespace MKV_Converter
 
         public List<AudioTrack> AudioTracks { get; } = new List<AudioTrack>();
 
-        public bool RequiresAudioConversion => AudioTracks.Any(t => t.RequiresConversion);
+        public bool RequiresAudioConversion => AudioTracks.Any(t => t.RequiresConversion && t.IsKept);
+
+        public bool HasRedundantAudio => AudioTracks.Any(t => t.IsRedundant);
 
         // Container duration from ffprobe, used for time-based progress (0 = unknown)
         public double DurationSeconds { get; set; }
@@ -79,14 +98,19 @@ namespace MKV_Converter
                 if (HasBitmapSubs) warnings += "• Contains image-based subtitles that will be stripped.\n";
                 if (RequiresAudioConversion)
                 {
-                    string codecs = string.Join(", ", AudioTracks.Where(t => t.RequiresConversion).Select(t => t.Codec.ToUpper()).Distinct());
-                    warnings += $"• Unsupported audio ({codecs}) will be converted to AC3. Other audio tracks are copied as-is.\n";
+                    string tracks = string.Join(", ", AudioTracks.Where(t => t.RequiresConversion && t.IsKept).Select(t => t.Describe()));
+                    warnings += $"• Unsupported audio ({tracks}) will be converted to AC3. Other audio tracks are copied as-is.\n";
+                }
+                if (HasRedundantAudio)
+                {
+                    string tracks = string.Join(", ", AudioTracks.Where(t => t.IsRedundant).Select(t => t.Describe()));
+                    warnings += $"• Unsupported audio ({tracks}) will be removed, because a compatible track in the same language is already present.\n";
                 }
                 return warnings.TrimEnd('\n');
             }
         }
 
-        public bool ShowWarningIcon => HasBitmapSubs || RequiresAudioConversion || HasUnsupportedDolbyVisionProfile;
+        public bool ShowWarningIcon => HasBitmapSubs || RequiresAudioConversion || HasRedundantAudio || HasUnsupportedDolbyVisionProfile;
 
         private string _progressText = "Pending";
         public string ProgressText { get => _progressText; set { _progressText = value; OnPropertyChanged(); } }
